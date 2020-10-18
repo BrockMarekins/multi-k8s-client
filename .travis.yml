@@ -1,0 +1,29 @@
+language: generic
+
+services:
+  - docker
+
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
+before_install:
+  # add service account to Google
+  - openssl aes-256-cbc -K $encrypted_9f3b5599b056_key -iv $encrypted_9f3b5599b056_iv -in service-account.json.enc -out service-account.json -d
+  # install Google SDK
+  - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; curl https://sdk.cloud.google.com | bash > /dev/null; source $HOME/google-cloud-sdk/path.bash.inc; gcloud components install kubectl; fi
+  - gcloud version
+  # config gcloud
+  - gcloud auth activate-service-account --key-file service-account.json
+  - gcloud config set project multi-k8s-292912
+  - gcloud config set compute/zone europe-west2-a
+  - gcloud container clusters get-credentials multi-k8s-cluster
+  # log in to the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+deploy:
+  provider: script
+  script: bash ./deploy.sh
+  on:
+    branch: master
